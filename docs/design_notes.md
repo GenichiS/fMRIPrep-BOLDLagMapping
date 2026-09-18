@@ -68,7 +68,8 @@ are never zero, in percent of the mean brain signal. A per-voxel percent-signal-
 psc`) divides by each voxel's own mean, so voxels with a near-zero mean (signal dropout, the edge of the field of
 view) can dominate it. DVARS is computed on the undilated brain mask: fMRIPrep's BOLD is not zero outside the
 brain, and the dilation ring would otherwise dominate. A frame is also a spike when framewise displacement exceeds
-`--fd-spike-threshold`, because a DVARS rule alone can miss moderate motion. The preceding frame is always added.
+`--fd-spike-threshold`, because a DVARS rule alone can miss moderate motion. The preceding frame is added by
+default (`--no-include-preceding-spike` turns this off).
 
 ## Amplitude exclusion
 
@@ -79,8 +80,11 @@ the stats sidecar.
 
 ## Numerical precision
 
-The resampled tracking series and the per-shift correlations are float32; everything else is float64. Voxels whose
-correlations at two steps are nearly tied can therefore choose a different step than a float64 implementation.
+The BOLD is loaded as float32, and nuisance regression, percent signal change and smoothing keep float32 (this
+halves the memory of every per-run array). Multiplying by the taper makes the series float64, which is what the
+estimator receives. The resampled tracking series and the per-shift correlations are float32 again. Voxels whose
+correlations at two steps are nearly tied can therefore choose a different step than an implementation that uses
+float64 at these points.
 `--save-filtered-bold` writes float64, the dtype the estimator receives, so that a saved series re-tracked
 elsewhere reproduces the map.
 

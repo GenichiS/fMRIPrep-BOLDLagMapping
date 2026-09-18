@@ -24,7 +24,7 @@ difference between the two, with the code on both sides.
 | `non_steady_state_outlier_XX` columns | The leading non-steady-state volumes are removed from the BOLD and the confounds of each run before anything else. | `io.count_leading_non_steady_state` |
 | `framewise_displacement` column | A frame is a spike if DVARS flags it **or** FD exceeds `--fd-spike-threshold`; the preceding frame is included. | `io.load_framewise_displacement`, `lag_preprocess` |
 | A BOLD series that is not zero outside the brain | DVARS is computed on the undilated brain mask only, so the noisy ring outside the brain cannot dominate it. | `core.process_runs` |
-| `space-T1w` runs and the `from-MNI152NLin2009cAsym_to-T1w` / `from-T1w_to-MNI152NLin2009cAsym` `.h5` transforms | Processing in the subject's space (`--native-space`, the default of `--fmriprep-dir`); the seed is moved into T1w space and every map is written in MNI152NLin2009cAsym. | `io.setup_native_space_processing`, `io.warp_to_mni_and_save` |
+| `space-T1w` runs and the `from-MNI152NLin2009cAsym_to-T1w` / `from-T1w_to-MNI152NLin2009cAsym` `.h5` transforms | Processing in the subject's space (`--native-space`, the default of `--fmriprep-dir`); the seed is moved into T1w space, and the lag and correlation maps and the masks are written in MNI152NLin2009cAsym (the pre-fill and raw lag maps stay in T1w space). Only the MNI152NLin2009cAsym transforms are accepted; if they are missing the run stops. | `io.setup_native_space_processing`, `io.find_transform_files`, `io.warp_to_mni_and_save` |
 | MNI152NLin2009cAsym as the standard space | A deep white-matter seed mask on fMRIPrep's 2 mm MNI152NLin2009cAsym grid ships with the package and is used by default. | `seeds.py`, `bold_lag_mapper/data/` |
 | Several runs per subject | Each run is cleaned and tapered separately, then the runs are concatenated and the lag is estimated once, as in the original pipeline. Output names keep the BIDS entities that are common to all runs. | `core.process_runs` |
 | Long-TR acquisitions (e.g. TR 2.5 s) | The filtered series is resampled to a 1 s tracking grid when TR ≥ 1.5 s, the approach of the original long-TR scripts. | `core.resolve_tracking_step` |
@@ -110,9 +110,14 @@ The defaults follow the authors' settings for fMRIPrep data. The table is checke
 | `--min-volumes` | `120` | fMRIPrep mode: shorter runs are dropped |
 
 To reproduce the settings of the original long-TR pipeline more closely: `--bandpass-high linked
---tracking-method fixed --spike-method aso-median --fd-spike-threshold 0`. The two implementations still differ
-in filtering, smoothing, masking and the order of operations (see the comparison document), so the maps will
-not be identical.
+--tracking-method fixed --spatial-fwhm 8 --spike-method aso-median --fd-spike-threshold 0`. The two
+implementations still differ in filtering, smoothing, masking and the order of operations (see the comparison
+document), so the maps will not be identical.
+
+The sub-step methods (`recursive_subtr`, `fixed_subtr`) refine lags only when the tracking step is at least
+`--subtr-min-tr`. With the default `--tracking-step-seconds auto` a long-TR series is tracked on a 1 s grid, where
+they run as their integer twins; use `--tracking-step-seconds none` to track at the TR with sub-step refinement.
+The method actually run is in the output names and in `_desc-stats.json`.
 
 ## Outputs
 
@@ -148,7 +153,8 @@ that it follows the seed (later).
   data with different TRs, record the tracking step and method (both are in `_desc-stats.json`).
 - The amplitude exclusion depends on the number of frames (the peak of a longer series is larger); the number of
   excluded voxels and the frame count are written to `_desc-stats.json`.
-- The bundled seed is derived from a standard MNI template/atlas and contains no subject data.
+- The bundled seed is a binary deep white-matter mask that the authors made from a standard MNI template/atlas; it
+  contains no subject data. It is stored on fMRIPrep's MNI152NLin2009cAsym 2 mm grid.
 - [docs/design_notes.md](docs/design_notes.md) explains the less obvious implementation choices.
 
 ## Tests

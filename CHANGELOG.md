@@ -13,3 +13,6 @@ First public release.
 - New: `--tracking-step-seconds auto` (1 s grid when TR >= 1.5 s) and `--bandpass-high linked`.
 - Changed defaults: `--spatial-fwhm 6`, `--bandpass-high 0.09`, `--max-lag-seconds 7`,
   `--tracking-step-seconds auto`, `--seed-roi-file builtin`.
+- Native-space processing of fMRIPrep output: the output root is the folder that contains `sub-<label>/` (any
+  name), anatomical files are searched in `sub-<label>/ses-<label>/anat` and then `sub-<label>/anat`, and only the
+  MNI152NLin2009cAsym <-> T1w transforms are accepted (no substitution of another template's transform).

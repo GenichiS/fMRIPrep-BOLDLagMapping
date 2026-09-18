@@ -122,6 +122,7 @@ def build_parser():
        bold-lag-mapper ... --bandpass-high linked --tracking-method fixed
     """
     parser = argparse.ArgumentParser(
+        prog="bold-lag-mapper",
         description="BOLD lag mapping (recursive lag tracking after Aso et al.) for fMRIPrep derivatives, "
                     "HCP outputs or explicitly listed files.",
         epilog=examples,

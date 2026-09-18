@@ -92,6 +92,15 @@ def test_fmriprep_mode_refuses_explicit_files(tmp_path):
                    "--output-dir", str(tmp_path / "out")])
 
 
+@pytest.mark.parametrize("opt,val", [("--participant-label", "01"), ("--session", "1"), ("--task", "rest"),
+                                     ("--res", "2"), ("--run", "run-01")])
+def test_fmriprep_options_need_fmriprep_dir(tmp_path, opt, val):
+    root = tmp_path / "fmriprep"
+    b = write_run(root / "sub-01" / "func", "sub-01_task-rest_run-01")
+    with pytest.raises(SystemExit):
+        _run_main(["--bold-files", str(b), "--mask-file", str(b), opt, val, "--output-dir", str(tmp_path / "out")])
+
+
 def test_an_input_mode_is_required(tmp_path):
     with pytest.raises(SystemExit):
         _run_main(["--output-dir", str(tmp_path / "out")])

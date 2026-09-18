@@ -178,13 +178,31 @@ def find_derivatives_root(bold_file):
             if part.isdigit() and len(part) >= 6:  # HCP subject ID
                 return Path(*path.parts[:i+1])
     
+    # BIDS derivatives (fMRIPrep): the directory that contains the sub-<label>/ folder of this file,
+    # whatever it is called (derivatives/fmriprep/, derivatives/ itself, or any output directory).
+    for i in range(len(path.parts) - 2, 0, -1):
+        if path.parts[i].startswith('sub-'):
+            return Path(*path.parts[:i])
+
     # For FMRIPREP/BIDS derivatives
     if 'derivatives' in path.parts:
         deriv_idx = path.parts.index('derivatives')
         return Path(*path.parts[:deriv_idx+2])  # Include pipeline name
-    
+
     # Fallback: use parent directories
     return path.parent.parent
+
+
+def _fmriprep_anat_candidates(derivatives_root, subject_id, session_id):
+    """(anat_dir, file_prefix) pairs to search, in order. fMRIPrep writes the anatomical outputs of a
+    single-session subject under sub-<label>/ses-<label>/anat and those of a multi-session subject (one
+    anatomical template for all sessions) under sub-<label>/anat, so both are tried."""
+    sub = derivatives_root / f"sub-{subject_id}"
+    pairs = []
+    if session_id:
+        pairs.append((sub / f"ses-{session_id}" / "anat", f"sub-{subject_id}_ses-{session_id}"))
+    pairs.append((sub / "anat", f"sub-{subject_id}"))
+    return pairs
 
 
 def find_anatomical_files(bold_file, space="MNI152NLin2009cAsym", file_type="T1w", label=None):
@@ -222,34 +240,28 @@ def find_anatomical_files(bold_file, space="MNI152NLin2009cAsym", file_type="T1w
             ])
     
     elif parser.pipeline_type == 'fmriprep':
-        # FMRIPREP structure
-        if session_id:
-            anat_dir = derivatives_root / f"sub-{subject_id}" / f"ses-{session_id}" / "anat"
-            file_prefix = f"sub-{subject_id}_ses-{session_id}"
-        else:
-            anat_dir = derivatives_root / f"sub-{subject_id}" / "anat"
-            file_prefix = f"sub-{subject_id}"
-        
-        if space == "native" or space == "T1w":
-            search_patterns.extend([
-                anat_dir / f"{file_prefix}_desc-preproc_{file_type}.nii.gz",
-                anat_dir / f"{file_prefix}_{file_type}.nii.gz",
-                # fMRIPrep may add a run- entity to anatomical names
-                # (sub-X_run-01_desc-preproc_T1w). The glob is anchored to this
-                # subject's anat_dir so extra entities are tolerated.
-                anat_dir / f"{file_prefix}_*desc-preproc_{file_type}.nii.gz",
-                anat_dir / f"{file_prefix}_*_{file_type}.nii.gz",
-            ])
-        else:
-            search_patterns.extend([
-                anat_dir / f"{file_prefix}_space-{space}_desc-preproc_{file_type}.nii.gz",
-                anat_dir / f"{file_prefix}_space-{space}_{file_type}.nii.gz",
-                # FMRIPREP may include res-* entity (e.g. res-2)
-                anat_dir / f"{file_prefix}_space-{space}_res-*_desc-preproc_{file_type}.nii.gz",
-                # a run- entity, when present, precedes space- in fMRIPrep filenames
-                anat_dir / f"{file_prefix}_*space-{space}_res-*_desc-preproc_{file_type}.nii.gz",
-                anat_dir / f"{file_prefix}_*space-{space}*_{file_type}.nii.gz",
-            ])
+        # FMRIPREP structure: session-level anat first, then subject-level anat
+        for anat_dir, file_prefix in _fmriprep_anat_candidates(derivatives_root, subject_id, session_id):
+            if space == "native" or space == "T1w":
+                search_patterns.extend([
+                    anat_dir / f"{file_prefix}_desc-preproc_{file_type}.nii.gz",
+                    anat_dir / f"{file_prefix}_{file_type}.nii.gz",
+                    # fMRIPrep may add a run- entity to anatomical names
+                    # (sub-X_run-01_desc-preproc_T1w). The glob is anchored to this
+                    # subject's anat_dir so extra entities are tolerated.
+                    anat_dir / f"{file_prefix}_*desc-preproc_{file_type}.nii.gz",
+                    anat_dir / f"{file_prefix}_*_{file_type}.nii.gz",
+                ])
+            else:
+                search_patterns.extend([
+                    anat_dir / f"{file_prefix}_space-{space}_desc-preproc_{file_type}.nii.gz",
+                    anat_dir / f"{file_prefix}_space-{space}_{file_type}.nii.gz",
+                    # FMRIPREP may include res-* entity (e.g. res-2)
+                    anat_dir / f"{file_prefix}_space-{space}_res-*_desc-preproc_{file_type}.nii.gz",
+                    # a run- entity, when present, precedes space- in fMRIPrep filenames
+                    anat_dir / f"{file_prefix}_*space-{space}_res-*_desc-preproc_{file_type}.nii.gz",
+                    anat_dir / f"{file_prefix}_*space-{space}*_{file_type}.nii.gz",
+                ])
     
     else:
         # Generic BIDS fallback
@@ -326,43 +338,47 @@ def find_transform_files(bold_file):
                     transforms['from_mni'] = pattern
     
     elif parser.pipeline_type == 'fmriprep':
-        # FMRIPREP transform structure
-        if session_id:
-            anat_dir = derivatives_root / f"sub-{subject_id}" / f"ses-{session_id}" / "anat"
-            file_prefix = f"sub-{subject_id}_ses-{session_id}"
-        else:
-            anat_dir = derivatives_root / f"sub-{subject_id}" / "anat"
-            file_prefix = f"sub-{subject_id}"
-        
-        # FMRIPREP transform patterns
-        transform_patterns = {
-            'to_mni': anat_dir / f"{file_prefix}_from-T1w_to-MNI152NLin2009cAsym_mode-image_xfm.h5",
-            'from_mni': anat_dir / f"{file_prefix}_from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm.h5"
-        }
-        
-        # fMRIPrep may add a run- entity to transform names. The glob is anchored to THIS
-        # subject's anat_dir with the exact directional name (run-tolerant), so another
-        # subject's transform can never match.
-        glob_patterns = {
-            'to_mni': f"{file_prefix}_*from-T1w_to-MNI152NLin2009cAsym*xfm.h5",
-            'from_mni': f"{file_prefix}_*from-MNI152NLin2009cAsym_to-T1w*xfm.h5",
-        }
-        for key, pattern in transform_patterns.items():
-            if pattern.exists():
-                transforms[key] = pattern
-            else:
-                alternatives = sorted(anat_dir.glob(glob_patterns[key]))
-                if alternatives:
-                    transforms[key] = alternatives[0]
-    
+        # FMRIPREP transform structure: session-level anat first, then subject-level anat. Only the
+        # MNI152NLin2009cAsym <-> T1w pair is accepted: the bundled seed and the outputs are defined in
+        # that space, so a transform to any other template must never be substituted.
+        searched = []
+        for anat_dir, file_prefix in _fmriprep_anat_candidates(derivatives_root, subject_id, session_id):
+            searched.append(str(anat_dir))
+            found = {}
+            transform_patterns = {
+                'to_mni': anat_dir / f"{file_prefix}_from-T1w_to-MNI152NLin2009cAsym_mode-image_xfm.h5",
+                'from_mni': anat_dir / f"{file_prefix}_from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm.h5"
+            }
+            # fMRIPrep may add a run- entity to transform names. The glob is anchored to THIS
+            # subject's anat_dir with the exact directional name (run-tolerant), so another
+            # subject's transform can never match.
+            glob_patterns = {
+                'to_mni': f"{file_prefix}_*from-T1w_to-MNI152NLin2009cAsym*xfm.h5",
+                'from_mni': f"{file_prefix}_*from-MNI152NLin2009cAsym_to-T1w*xfm.h5",
+            }
+            for key, pattern in transform_patterns.items():
+                if pattern.exists():
+                    found[key] = pattern
+                else:
+                    alternatives = sorted(anat_dir.glob(glob_patterns[key]))
+                    if alternatives:
+                        found[key] = alternatives[0]
+            if len(found) == 2:
+                transforms.update(found)
+                break
+        if len(transforms) < 2:
+            logger.error("fMRIPrep MNI152NLin2009cAsym <-> T1w transforms (*_from-T1w_to-MNI152NLin2009cAsym*_xfm.h5 "
+                         f"and *_from-MNI152NLin2009cAsym_to-T1w*_xfm.h5) not found in {searched}. Run fMRIPrep with "
+                         "MNI152NLin2009cAsym among --output-spaces, or process the MNI-space runs without --native-space.")
+        return transforms
+
     # Validate that we found the necessary transforms
     required_transforms = ['to_mni', 'from_mni']
     missing = [t for t in required_transforms if t not in transforms]
-    
+
     if missing:
-        # The last-resort search is restricted to THIS subject's anat_dir (a search of the
-        # whole derivatives root could pick up another subject's transforms).
-        search_dir = anat_dir if parser.pipeline_type == 'fmriprep' else derivatives_root
+        # Last-resort search (non-fMRIPrep layouts only; fMRIPrep returns above).
+        search_dir = derivatives_root
         available_files = list(search_dir.rglob("*xfm*")) + list(search_dir.rglob("*warp*"))
         logger.warning(f"Missing transforms: {missing}")
         logger.info(f"Available transform files: {[str(f) for f in available_files[:10]]}")

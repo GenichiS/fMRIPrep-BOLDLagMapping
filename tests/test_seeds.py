@@ -38,6 +38,17 @@ def test_builtin_is_refused_when_the_space_does_not_match(bold):
         seeds.resolve_seed_roi("builtin", bold, native_space=False)
 
 
+HCP = "/data/100307/MNINonLinear/Results/rfMRI_REST1_PA/rfMRI_REST1_PA.nii.gz"
+
+
+@pytest.mark.parametrize("bold", [HCP, MNI, OTHER, "rest_bold.nii.gz"])
+def test_builtin_with_native_space_needs_fmriprep_t1w_input(bold):
+    """--native-space moves the seed with fMRIPrep's MNI152NLin2009cAsym->T1w transform, so it is valid only for
+    fMRIPrep T1w-space runs; HCP data (other template), MNI-space runs or unknown spaces must stop."""
+    with pytest.raises(ValueError, match="--seed-roi-file"):
+        seeds.resolve_seed_roi("builtin", bold, native_space=True)
+
+
 @pytest.mark.parametrize("value", [None, "global", "GLOBAL"])
 def test_global_means_no_seed_file(value):
     assert seeds.resolve_seed_roi(value, OTHER, native_space=False) is None

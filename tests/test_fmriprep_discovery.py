@@ -92,6 +92,22 @@ def test_several_tasks_need_task(tmp_path):
         discover_fmriprep_inputs(tmp_path, "01")
 
 
+@pytest.mark.parametrize("a,b", [("acq-mb4", "acq-mb8"), ("echo-1", "echo-2"), ("rec-a", "rec-b")])
+def test_runs_of_different_kinds_are_not_mixed(tmp_path, a, b):
+    write_run(_func(tmp_path), f"sub-01_task-rest_{a}_run-01")
+    write_run(_func(tmp_path), f"sub-01_task-rest_{b}_run-01")
+    with pytest.raises(ValueError, match="different"):
+        discover_fmriprep_inputs(tmp_path, "01")
+    assert len(discover_fmriprep_inputs(tmp_path, "01", runs=[a]).bold_files) == 1
+
+
+def test_dir_and_run_variation_is_concatenated(tmp_path):
+    for d in ("AP", "PA"):
+        for r in ("01", "02"):
+            write_run(_func(tmp_path, ses="1"), f"sub-01_ses-1_task-rest_dir-{d}_run-{r}")
+    assert len(discover_fmriprep_inputs(tmp_path, "01").bold_files) == 4
+
+
 def test_run_fragments_select_runs(tmp_path):
     write_run(_func(tmp_path), "sub-01_task-rest_dir-AP_run-01")
     b = write_run(_func(tmp_path), "sub-01_task-rest_dir-PA_run-01")

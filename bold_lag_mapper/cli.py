@@ -186,7 +186,9 @@ def build_parser():
                              "at every step; default), fixed (FIXED=1, one seed), recursive_subtr (recursive + "
                              "5-point sub-step refinement + seed-phase tracking), fixed_subtr (fixed seed + "
                              "5-point sub-step refinement). Below --subtr-min-tr the *_subtr methods run as their "
-                             "integer twins and the outputs are named after the method actually run.")
+                             "integer twins and the outputs are named after the method actually run; with the default "
+                             "--tracking-step-seconds auto a long-TR series is tracked on a 1 s grid, so the *_subtr "
+                             "methods need --tracking-step-seconds none to track at the TR with sub-step refinement.")
     parser.add_argument("--max-lag-seconds", type=float, default=7.0,
                         help="Search range in seconds (default 7.0). The search is set in whole tracking steps, "
                              "round(max_lag_seconds / step), and the effective range is logged. With "
@@ -275,8 +277,10 @@ def build_parser():
 def apply_fmriprep_inputs(args, parser):
     """Fill --bold-files, --motion-confounds-files and --mask-file from --fmriprep-dir (fMRIPrep mode)."""
     if args.fmriprep_dir is None:
-        if args.participant_label is not None:
-            parser.error("--participant-label needs --fmriprep-dir.")
+        given = [o for o, v in (("--participant-label", args.participant_label), ("--session", args.session),
+                                ("--task", args.task), ("--res", args.res), ("--run", args.runs)) if v is not None]
+        if given:
+            parser.error(f"{', '.join(given)} only apply with --fmriprep-dir.")
         if not args.bold_files:
             parser.error("Give --bold-files (with --mask-file), or --fmriprep-dir with --participant-label.")
         return None

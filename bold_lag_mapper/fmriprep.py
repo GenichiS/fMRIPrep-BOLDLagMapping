@@ -83,6 +83,13 @@ def discover_fmriprep_inputs(fmriprep_dir, participant_label, session=None, task
         values = sorted({e[key] for _, e in candidates if key in e})
         if len(values) > 1:
             raise ValueError(f"sub-{label} has several {key} values {values} in space {space}; choose one with {flag}.")
+    # Runs that differ in acquisition, reconstruction, contrast agent or echo are different kinds of data and must
+    # not be concatenated; dir- and run- are the ordinary run-to-run variation and are kept.
+    for key in ("acq", "rec", "ce", "echo"):
+        values = sorted({e.get(key, "") for _, e in candidates})
+        if len(values) > 1:
+            raise ValueError(f"sub-{label} has runs with different {key}- entities {values}; select one kind "
+                             "with --run (e.g. --run acq-X) or pass the files explicitly.")
 
     bolds, confounds, dropped, mask = [], [], [], None
     for p, _ in candidates:

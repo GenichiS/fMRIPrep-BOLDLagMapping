@@ -1,4 +1,4 @@
-"""Public CLI: production settings are the defaults, only the MATLAB-family methods exist, and --fmriprep-dir
+"""Public CLI: the recommended settings are the defaults, only the MATLAB-family methods exist, and --fmriprep-dir
 fills the inputs and switches native-space processing on for T1w input."""
 import sys
 from pathlib import Path
@@ -17,7 +17,7 @@ def _parse(*argv):
     return cli.build_parser().parse_args(list(argv))
 
 
-def test_production_settings_are_the_defaults():
+def test_recommended_settings_are_the_defaults():
     a = _parse()
     assert (a.spatial_fwhm, a.bandpass_high, a.max_lag_seconds) == (6.0, 0.09, 7.0)
     assert a.tracking_step_seconds == "auto" and a.tracking_method == "recursive" and a.seed_roi_file == "builtin"

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bold-lag-mapper"
+version = "2.0.0"
+description = "Voxelwise BOLD lag mapping for fMRIPrep derivatives (Python implementation of the drLag4D recursive tracking method)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "Genichi Sugihara"}]
+dependencies = ["nibabel", "numpy", "scipy", "nilearn", "matplotlib", "pandas", "tqdm"]
+
+[project.optional-dependencies]
+gpu = ["cupy"]
+native = ["antspyx"]
+test = ["pytest"]
+
+[project.scripts]
+bold-lag-mapper = "bold_lag_mapper.cli:main"
+
+[tool.setuptools]
+packages = ["bold_lag_mapper"]
+
+[tool.setuptools.package-data]
+bold_lag_mapper = ["data/*.nii.gz"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

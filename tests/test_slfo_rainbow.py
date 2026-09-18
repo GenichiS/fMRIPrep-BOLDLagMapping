@@ -44,6 +44,28 @@ def test_run_boundaries_and_missing_steps_are_tolerated():
         assert np.isfinite(r)
 
 
+def test_colourbar_label_fits_and_names_the_sign(monkeypatch):
+    """The colour-bar label must fit the short figure: 'lag (s)' on the bar and 'earlier' / 'later' at its
+    ends (a positive lag leads the seed), as in the lag-map figures; no interpretive wording."""
+    import matplotlib.figure
+    saved = []
+    savefig = matplotlib.figure.Figure.savefig
+
+    def keep(fig, *args, **kwargs):
+        saved.append(fig)
+        return savefig(fig, *args, **kwargs)
+
+    monkeypatch.setattr(matplotlib.figure.Figure, "savefig", keep)
+    with tempfile.TemporaryDirectory() as d:
+        viz.save_slfo_rainbow_plot(_seeds(0.05, 2.5), 2.5, os.path.join(d, "c"), [240], lim_seconds=7.5)
+    assert len(saved) == 1
+    cbar = saved[0].axes[-1]
+    assert cbar.get_ylabel() == "lag (s)"
+    ends = {t.get_text(): t.get_position()[1] for t in cbar.texts}
+    assert set(ends) == {"earlier", "later"}
+    assert ends["earlier"] > ends["later"]                     # earlier (positive) at the top
+
+
 def test_empty_seeds_return_nan_without_writing():
     with tempfile.TemporaryDirectory() as d:
         r = viz.save_slfo_rainbow_plot({}, 2.5, os.path.join(d, "e"), [240], lim_seconds=7.5)

@@ -1,6 +1,7 @@
 # fMRIPrep-BOLDLagMapping
 
-Voxelwise BOLD lag mapping for [fMRIPrep](https://fmriprep.org) derivatives.
+Voxelwise BOLD lag mapping for [fMRIPrep](https://fmriprep.org) derivatives, and for HCP-pipeline outputs or any
+other 4D NIfTI data.
 
 `bold-lag-mapper` estimates, for every voxel, the time shift (in seconds) at which the systemic low-frequency
 oscillation (sLFO) of the resting-state BOLD signal reaches that voxel, relative to a seed region. The result
@@ -10,10 +11,17 @@ handling, masks, spike detection and outputs needed to run it directly on fMRIPr
 
 Dr Aso also maintains the official Python port of his MATLAB code,
 **[boldlag](https://github.com/RIKEN-BCIL/HCPstyle-BOLDLagMappingAndCleaning)**, which reproduces the MATLAB
-results bit for bit and is organised around the HCP directory layout. If you work with HCP-style data, or need
-exact agreement with the MATLAB scripts, use boldlag. If your data come out of fMRIPrep, this package is meant to
-save you the glue code. [docs/comparison_with_boldlag.md](docs/comparison_with_boldlag.md) lists every
-difference between the two, with the code on both sides.
+results bit for bit and is organised around the HCP directory layout; use it when you need exact agreement with the
+MATLAB scripts. This package reads fMRIPrep derivatives directly (`--fmriprep-dir`) and takes HCP-pipeline outputs
+or any other 4D NIfTI data as explicit files. [docs/comparison_with_boldlag.md](docs/comparison_with_boldlag.md)
+lists every difference between the two, with the code on both sides.
+
+![BOLD lag maps from OpenNeuro ds000258: group mean and one typical subject](docs/figures/readme_lagmaps.png)
+
+*Lag maps made with the default settings from the fMRIPrep outputs of OpenNeuro
+[ds000258](https://doi.org/10.18112/openneuro.ds000258.v1.0.0) (CC0). Top: the mean over the subjects that passed a
+framewise-displacement screen. Bottom: one subject, chosen by rule as the one whose agreement with the mean of the
+others is the median. Red is earlier and blue later than the bundled deep white-matter seed.*
 
 ## Why use it with fMRIPrep
 
@@ -28,6 +36,25 @@ difference between the two, with the code on both sides.
 | MNI152NLin2009cAsym as the standard space | A deep white-matter seed mask on fMRIPrep's 2 mm MNI152NLin2009cAsym grid ships with the package and is used by default. | `seeds.py`, `bold_lag_mapper/data/` |
 | Several runs per subject | Each run is cleaned and tapered separately, then the runs are concatenated and the lag is estimated once, as in the original pipeline. Output names keep the BIDS entities that are common to all runs. | `core.process_runs` |
 | Long-TR acquisitions (e.g. TR 2.5 s) | The filtered series is resampled to a 1 s tracking grid when TR ≥ 1.5 s, the approach of the original long-TR scripts. | `core.resolve_tracking_step` |
+
+## How it works
+
+```mermaid
+flowchart LR
+    A["<b>fMRIPrep</b><br/>--fmriprep-dir<br/>--participant-label"] --> C
+    B["<b>HCP pipelines or any 4D NIfTI</b><br/>--bold-files<br/>--motion-confounds-files<br/>--mask-file"] --> C
+    C["<b>Each run</b><br/>drop non-steady-state volumes<br/>motion and spike regression<br/>smoothing, taper, band-pass"] --> D
+    D["<b>All runs</b><br/>concatenate<br/>long TR: resample to the tracking grid<br/>seed sLFO"] --> E
+    E["<b>Recursive tracking</b><br/>assign each voxel a lag step<br/>re-form the seed at every step"] --> F
+    F["<b>Outputs</b><br/>lag and correlation maps<br/>masks, QC figures<br/>stats sidecar"]
+```
+
+The seed's sLFO is followed one lag step at a time in both directions: voxels whose correlation with the current
+seed peaks at that step (above `--min-corr-threshold`) are given that lag, and their mean becomes the seed of the
+next step ([docs/design_notes.md](docs/design_notes.md)). The QC figure below (written with `--save-carpet-map`, from
+the subject in the bottom row above) draws the seed of every step shifted back to the voxels it represents.
+
+![Shifted sLFO of every tracking step](docs/figures/readme_slfo_rainbow.png)
 
 ## Installation
 
@@ -57,6 +84,26 @@ bold-lag-mapper --fmriprep-dir /data/derivatives/fmriprep --participant-label 01
 
 Add `--session`, `--task`, `--res` or `--run` when the subject has several sessions, tasks, resolutions or runs
 you want to select. `python -m bold_lag_mapper` is equivalent to `bold-lag-mapper`; `--help` lists every option.
+
+### HCP pipeline outputs
+
+The volumes in `MNINonLinear/Results/<run>/` are given as explicit files, one run after another, each with its own
+`Movement_Regressors.txt`:
+
+```
+R=/data/HCP/100307/MNINonLinear/Results
+bold-lag-mapper \
+    --bold-files $R/rfMRI_REST1_LR/rfMRI_REST1_LR.nii.gz $R/rfMRI_REST1_RL/rfMRI_REST1_RL.nii.gz \
+    --motion-confounds-files $R/rfMRI_REST1_LR/Movement_Regressors.txt $R/rfMRI_REST1_RL/Movement_Regressors.txt \
+    --txt-motion-schema hcp --mask-file $R/rfMRI_REST1_LR/brainmask_fs.2.nii.gz \
+    --seed-roi-file global --output-dir /data/lagmap/100307
+```
+
+`--txt-motion-schema hcp` reads the six rigid-body parameters (translations in mm, rotations in degrees) and accepts
+the 12-column file that also carries their derivatives. These volumes are on FSL's MNI152 template grid, not in
+MNI152NLin2009cAsym, so the bundled seed is refused: use `--seed-roi-file global` (the whole brain mask, the
+initial reference of the original HCP pipeline) or a seed mask on the same grid. The volumes are zero outside the
+brain; DVARS is computed inside the brain mask only.
 
 ### Explicit files (any pipeline)
 
@@ -136,6 +183,8 @@ Every file name starts with `<stem>_tracking-<method>_lag<max>[_step<step>]_sm<f
 | `_desc-seeds.npz` | same | Seed (sLFO) time course of every tracking step |
 
 With `--native-space` the seed moved into T1w space is written as `sub-<label>_space-T1w_desc-warpedseed_mask.nii.gz`.
+The MNI152NLin2009cAsym outputs are written on nilearn's 2 mm MNI152 template grid, which is not the grid of
+fMRIPrep's `res-2` outputs; resample one onto the other before combining them voxel by voxel.
 Optional outputs: `--save-screenshot`, `--save-carpet-map` (QC figures, including the shifted-sLFO "rainbow" plot),
 `--save-deperfusioned-bold {raw,cleaned,both}` (the BOLD with the lag structure regressed out),
 `--save-cleaned-bold`, `--save-filtered-bold` (intermediate series). A log of every argument is written to the

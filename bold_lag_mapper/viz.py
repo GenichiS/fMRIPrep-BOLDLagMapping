@@ -290,8 +290,11 @@ def save_slfo_rainbow_plot(seed_time_series, tr_track, output_prefix, run_length
         ax.axvline(edge * tr_track, color="k", ls="--", lw=0.8)
     ax.set_xlabel("time (s)")
     ax.set_ylabel("sLFO (std units)")
-    fig.colorbar(cm.ScalarMappable(norm=norm, cmap="RdBu_r"), ax=ax, pad=0.01,
-                 label="lag (s)   red (+): early / upstream    blue (-): late / downstream")   # sign: + leads the seed
+    cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap="RdBu_r"), ax=ax, pad=0.01, label="lag (s)")
+    # sign: a positive lag leads the seed; the ends are named instead of a long label, which the short
+    # figure would clip
+    cb.ax.text(0.5, 1.02, "earlier", transform=cb.ax.transAxes, ha="center", va="bottom", fontsize=8)
+    cb.ax.text(0.5, -0.02, "later", transform=cb.ax.transAxes, ha="center", va="top", fontsize=8)
     ax.set_title(f"shifted sLFO per lag step (step {tr_track:g} s, {len(keys)} steps); "
                  f"r(seed0 shifted +{max_step}, -{max_step}) = {boundary_r:+.2f}", fontsize=9)
     fig.tight_layout()

@@ -16,3 +16,6 @@ First public release.
 - Native-space processing of fMRIPrep output: the output root is the folder that contains `sub-<label>/` (any
   name), anatomical files are searched in `sub-<label>/ses-<label>/anat` and then `sub-<label>/anat`, and only the
   MNI152NLin2009cAsym <-> T1w transforms are accepted (no substitution of another template's transform).
+- sLFO rainbow QC figure: the colour bar reads "lag (s)" with "earlier" / "later" at its ends (the longer label
+  was clipped).
+- README: example figures from OpenNeuro ds000258, a processing diagram, and an HCP-pipeline example.

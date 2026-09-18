@@ -1,0 +1,15 @@
+# Changelog
+
+## [2.0.0] - unreleased
+
+First public release.
+
+- Derived from the authors' internal version 1.7.0 of the lag mapper.
+- Only the MATLAB-family tracking methods are included (`recursive`, `recursive_subtr`, `fixed`,
+  `fixed_subtr`); experimental FFT-based and iterative estimators of earlier internal versions were removed.
+- New: `--fmriprep-dir` / `--participant-label` input discovery (runs, confounds, mask, TR checks).
+- New: bundled deep white-matter seed on fMRIPrep's MNI152NLin2009cAsym 2 mm grid (`--seed-roi-file builtin`,
+  the default; `global` for the whole-brain signal).
+- New: `--tracking-step-seconds auto` (1 s grid when TR >= 1.5 s) and `--bandpass-high linked`.
+- Changed defaults: `--spatial-fwhm 6`, `--bandpass-high 0.09`, `--max-lag-seconds 7`,
+  `--tracking-step-seconds auto`, `--seed-roi-file builtin`.

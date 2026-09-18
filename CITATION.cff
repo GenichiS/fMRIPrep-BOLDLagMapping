@@ -1,0 +1,45 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below, together with the papers of the lag-tracking method."
+title: "fMRIPrep-BOLDLagMapping: voxelwise BOLD lag mapping for fMRIPrep derivatives"
+version: 2.0.0
+license: MIT
+authors:
+  - family-names: Sugihara
+    given-names: Genichi
+references:
+  - type: article
+    title: "A resilient, non-neuronal source of the spatiotemporal lag structure detected by BOLD signal-based blood flow tracking"
+    authors:
+      - family-names: Aso
+        given-names: Toshihiko
+      - family-names: Jiang
+        given-names: Guanhua
+      - family-names: Urayama
+        given-names: Shin-ichi
+      - family-names: Fukuyama
+        given-names: Hidenao
+    journal: "Frontiers in Neuroscience"
+    volume: 11
+    year: 2017
+    doi: 10.3389/fnins.2017.00256
+  - type: article
+    title: "Axial variation of deoxyhemoglobin density as a source of the low-frequency time lag structure in blood oxygenation level-dependent signals"
+    authors:
+      - family-names: Aso
+        given-names: Toshihiko
+      - family-names: Urayama
+        given-names: Shinnichi
+      - family-names: Fukuyama
+        given-names: Hidenao
+      - family-names: Murai
+        given-names: Toshiya
+    journal: "PLOS ONE"
+    volume: 14
+    year: 2019
+    doi: 10.1371/journal.pone.0222787
+  - type: software
+    title: "HCPstyle-BOLDLagMappingAndCleaning (boldlag)"
+    authors:
+      - family-names: Aso
+        given-names: Toshihiko
+    url: "https://github.com/RIKEN-BCIL/HCPstyle-BOLDLagMappingAndCleaning"
